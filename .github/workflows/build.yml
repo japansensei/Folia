@@ -28,30 +28,30 @@ jobs:
           git config --global user.email "actions@github.com"
           git config --global user.name "GitHub Actions"
 
-      # 1) применяем патчи (важно вызывать applyAllPatches)
+      # 1) применяем патчи
       - name: Apply patches
         run: ./gradlew :applyAllPatches --stacktrace
 
-      # 2) собираем jar (выбери один блок: bundler ИЛИ paperclip)
-      - name: Build server jar (bundler)
-        run: ./gradlew :createReobfBundlerJar --stacktrace
+      # 2) собираем всё, не угадывая имя конкретной задачи артефакта
+      - name: Build all
+        run: ./gradlew build --stacktrace
 
-      # - name: Build server jar (paperclip)
-      #   run: ./gradlew :createReobfPaperclipJar --stacktrace
-
-      # 3) посмотрим, куда Gradle положил файлы
-      - name: List outputs
+      # 3) смотрим, куда всё вывалилось
+      - name: List candidate jars
         run: |
-          echo "root build/libs:"
+          echo "Root build/libs:"
           ls -lah build/libs || true
-          echo "server subproject build/libs:"
-          ls -lah **/build/libs || true
+          echo "All build/libs:"
+          find . -type d -name libs -path "*/build/libs" -print -exec ls -lah {} \; || true
 
-      # 4) прикрепляем артефакты (подхватим и root, и сабпроекты)
-      - name: Upload artifact
+      # 4) загружаем все подходящие jar'ы
+      - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
           name: folia-1.21.8
           path: |
-            build/libs/*.jar
+            **/build/libs/*paperclip*.jar
+            **/build/libs/*bundler*.jar
+            **/build/libs/*reobf*.jar
             **/build/libs/*.jar
+          if-no-files-found: warn
