@@ -1,25 +1,29 @@
-name: Build Folia
-
-on:
-  workflow_dispatch:
+name: Build Folia 1.21.8
+on: { workflow_dispatch: {} }
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Set up Java 21
-        uses: actions/setup-java@v4
+      - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: 21
 
-      - name: Build with Gradle
-        run: ./gradlew createReobfPaperclipJar
+      - name: Apply patches
+        run: ./gradlew applyPatches
+        env:
+          GIT_COMMITTER_NAME: ci
+          GIT_COMMITTER_EMAIL: ci@example.com
+          GIT_AUTHOR_NAME: ci
+          GIT_AUTHOR_EMAIL: ci@example.com
 
-      - name: Upload server jar
+      - name: Build jar (bundler)
+        run: ./gradlew createReobfBundlerJar
+
+      - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: folia-1.21.8
