@@ -1,7 +1,7 @@
 name: Patch and Build
 
 on:
-  workflow_dispatch:    # чтобы можно было запускать вручную и выбрать ветку
+  workflow_dispatch: {}
   push:
     branches: ["**"]
   pull_request:
@@ -14,7 +14,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up JDK 21 (Temurin)
+      - name: Set up JDK 21
         uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -28,25 +28,30 @@ jobs:
           git config --global user.email "actions@github.com"
           git config --global user.name "GitHub Actions"
 
-      # 1) применяем патчи (для Folia это обязательно)
+      # 1) применяем патчи (важно вызывать applyAllPatches)
       - name: Apply patches
-        run: ./gradlew applyPatches --stacktrace
+        run: ./gradlew :applyAllPatches --stacktrace
 
-      # 2) собираем серверный jar (вариант A — bundler)
+      # 2) собираем jar (выбери один блок: bundler ИЛИ paperclip)
       - name: Build server jar (bundler)
-        run: ./gradlew createReobfBundlerJar --stacktrace
+        run: ./gradlew :createReobfBundlerJar --stacktrace
 
-      # Если нужен именно paperclip, раскомментируй это и закомментируй bundler:
       # - name: Build server jar (paperclip)
-      #   run: ./gradlew createReobfPaperclipJar --stacktrace
+      #   run: ./gradlew :createReobfPaperclipJar --stacktrace
 
-      # 3) показать, что собралось
+      # 3) посмотрим, куда Gradle положил файлы
       - name: List outputs
-        run: ls -lah build/libs || true
+        run: |
+          echo "root build/libs:"
+          ls -lah build/libs || true
+          echo "server subproject build/libs:"
+          ls -lah **/build/libs || true
 
-      # 4) прикрепляем jar как артефакт
+      # 4) прикрепляем артефакты (подхватим и root, и сабпроекты)
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: folia-1.21.8
-          path: build/libs/*.jar
+          path: |
+            build/libs/*.jar
+            **/build/libs/*.jar
