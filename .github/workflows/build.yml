@@ -1,28 +1,52 @@
 name: Patch and Build
 
 on:
+  workflow_dispatch:    # чтобы можно было запускать вручную и выбрать ветку
   push:
-    branches: [ "**" ]
+    branches: ["**"]
   pull_request:
 
 jobs:
   build:
-    # Only run on PRs if the source branch is on someone else's repo
     if: ${{ github.event_name != 'pull_request' || github.repository != github.event.pull_request.head.repo.full_name }}
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Git Repository
+      - name: Checkout
         uses: actions/checkout@v4
-      - name: Set up JDK
+
+      - name: Set up JDK 21 (Temurin)
         uses: actions/setup-java@v4
         with:
-          distribution: 'temurin'
-          java-version: '21'
+          distribution: temurin
+          java-version: 21
+
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
-      - name: Configure Git User Details
-        run: git config --global user.email "actions@github.com" && git config --global user.name "Github Actions"
-      - name: Apply Patches
-        run: ./gradlew applyAllPatches --stacktrace
-      - name: Build
-        run: ./gradlew build
+
+      - name: Configure Git User
+        run: |
+          git config --global user.email "actions@github.com"
+          git config --global user.name "GitHub Actions"
+
+      # 1) применяем патчи (для Folia это обязательно)
+      - name: Apply patches
+        run: ./gradlew applyPatches --stacktrace
+
+      # 2) собираем серверный jar (вариант A — bundler)
+      - name: Build server jar (bundler)
+        run: ./gradlew createReobfBundlerJar --stacktrace
+
+      # Если нужен именно paperclip, раскомментируй это и закомментируй bundler:
+      # - name: Build server jar (paperclip)
+      #   run: ./gradlew createReobfPaperclipJar --stacktrace
+
+      # 3) показать, что собралось
+      - name: List outputs
+        run: ls -lah build/libs || true
+
+      # 4) прикрепляем jar как артефакт
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: folia-1.21.8
+          path: build/libs/*.jar
